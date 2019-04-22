@@ -1,0 +1,66 @@
+---
+title: "HW2_Task2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+## Task 2
+
+```{r}
+require(data.table)
+install.packages('TunePareto', repos = "http://cran.us.r-project.org")
+require(TunePareto)
+require(glmnet)
+setwd("C:/Users/Mustafa Oguz Turkkan/Documents/GitHub/etm01-Delicioussaw")
+require(lubridate)
+testStart=as.Date('2018-11-16')
+trainStart=as.Date('2012-07-15')
+rem_miss_threshold=0.01 #parameter for removing bookmaker odds with missing ratio greater than this threshold
+
+#sources were updated depend on over/under bet type.
+source('data_preprocessinghw2_3.r')
+source('feature_extractionhw2.r')
+source('performance_metrics.r')
+source('train_models.r')
+
+# read data
+matches_raw=readRDS('df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds')
+odd_details_raw=readRDS('df9b1196-e3cf-4cc7-9159-f236fe738215_odd_details.rds')
+
+
+# preprocess matches
+matches=matches_data_preprocessing(matches_raw)
+
+# preprocess odd data
+odd_details=details_data_preprocessing(odd_details_raw,matches)
+
+# extract open and close odd type features from multiple bookmakers
+features=extract_features.openclose(matches,odd_details,pMissThreshold=rem_miss_threshold,trainStart,testStart)
+
+
+# divide data based on the provided dates 
+train_features=features[Match_Date>=trainStart & Match_Date<testStart] 
+test_features=features[Match_Date>=testStart] 
+
+# run glmnet on train data with tuning lambda parameter based on RPS and return predictions based on lambda with minimum RPS
+train_features <- train_features[,-(1:4)]     
+model=glm(Result_Total~.,data=train_features,family="binomial")
+summary(model)
+predictions=predict(model, newdata = test_features,type = "response")
+
+
+## Confusion matrix  different threshold=cutoff values
+table(test_features$Result_Total,predictions>=0.8)
+table(test_features$Result_Total,predictions>=0.35)
+table(test_features$Result_Total,predictions>=0.5)
+table(test_features$Result_Total,predictions>=0.4)
+table(test_features$Result_Total,predictions>=0.3)
+```
+

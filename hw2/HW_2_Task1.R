@@ -1,0 +1,120 @@
+install.packages('data.table')
+require(data.table)
+install.packages('na.tools')
+install.packages('tidyimpute')
+library('na.tools')
+library('tidyimpute')
+install.packages('ggplot2')
+library('ggplot2')
+install.packages('ggfortify')
+library('ggfortify')
+library('dplyr')
+
+#read matches and odds info
+setwd("C:/Users/Mustafa Oguz Turkkan/Documents/GitHub/etm01-Delicioussaw")
+matches=readRDS('df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds')
+odds=readRDS('df9b1196-e3cf-4cc7-9159-f236fe738215_odd_details.rds')
+
+#We adjust the matches data for showing the total number of goals and if the result's over or under
+matches[,c('score_home','score_away'):=tstrsplit(score,':')]
+matches[,score_home:=as.numeric(score_home)]
+matches[,score_away:=as.numeric(score_away)]
+matches$sum_score=rowSums(cbind(matches$score_home,matches$score_away))
+matches[,ou:=ifelse(sum_score>2.5,'over','under')]
+#matches = matches %>% distinct()
+
+#omit the ou betTypes with totalhandicap != 2.5
+temp_odds=odds[odds$betType=="ou" & odds$totalhandicap != '2.5',]
+new_odds=as.data.table(anti_join(odds,temp_odds))
+rm(temp_odds)
+
+#get the latest odds
+latest_odds=new_odds[,list(last_odd=odd[.N]),list(matchId,oddtype,bookmaker)]
+
+all_bookmakers=unique(latest_odds[,'bookmaker'])
+
+pca_calculator <- function(filtered_odds){
+  filtered_odds=dcast(filtered_odds, bookmaker + matchId ~ oddtype, value.var="last_odd")
+  bookmaker_name=filtered_odds[1,1]
+  matchID_vector=filtered_odds[,2]
+  filtered_odds_tidy=filtered_odds
+  filtered_odds_tidy[,c(1:2)]=list(NULL)
+  filtered_odds_tidy=impute(filtered_odds_tidy,na.mean)
+  odds_with_ou=merge(filtered_odds,matches[,c("matchId","ou")],by="matchId")
+  final_plot <- autoplot(prcomp(filtered_odds_tidy, center=TRUE, scale. = TRUE), data=odds_with_ou,
+           loadings = TRUE, loadings.label=TRUE, frame = TRUE, frame.type = 'norm', colour="ou") + ggtitle(bookmaker_name)
+  return(list(final_plot))
+  }
+
+MDS_calculator <- function(filtered_odds,x){
+  filtered_odds=dcast(filtered_odds, bookmaker + matchId ~ oddtype, value.var="last_odd")
+  bookmaker_name=filtered_odds[1,1]
+  matchID_vector=filtered_odds[,2]
+  filtered_odds_tidy=filtered_odds
+  filtered_odds_tidy[,c(1:2)]=list(NULL)
+  filtered_odds_tidy=impute(filtered_odds_tidy,na.mean)
+  odds_with_ou=merge(filtered_odds,matches[,c("matchId","ou")],by="matchId")
+  if(x==1){
+    distance_filtered_odds <- dist(filtered_odds_tidy)
+  }else{
+    distance_filtered_odds <- dist(filtered_odds_tidy, method = 'manhattan')
+  }
+  final_plot <- autoplot(cmdscale(distance_filtered_odds, eig = TRUE), data=odds_with_ou, frame=TRUE) + ggtitle(bookmaker_name)
+  return(list(final_plot))
+}
+
+#select 5 bookmakers randomly
+select_bookmakers=sample(1:nrow(all_bookmakers),size=5)
+
+#send 5 different data for different bookmakers to PCA and MDS functions
+for(i in 1:5){
+  if(i==1){
+    filtered_odds_1=latest_odds[bookmaker==all_bookmakers[select_bookmakers[i]]]
+    final_plot <- pca_calculator(filtered_odds_1)
+    final_plot[[1]]
+    final_plot <- MDS_calculator(filtered_odds_1,1)
+    final_plot[[1]]
+    final_plot <-  MDS_calculator(filtered_odds_1,2)
+    final_plot[[1]]
+  }
+  if(i==2){
+    filtered_odds_2=latest_odds[bookmaker==all_bookmakers[select_bookmakers[i]]]
+    final_plot <- pca_calculator(filtered_odds_2)
+    final_plot[[1]]
+    final_plot <- MDS_calculator(filtered_odds_2,1)
+    final_plot[[1]]
+    final_plot <-  MDS_calculator(filtered_odds_2,2)
+    final_plot[[1]]
+  }
+  if(i==3){
+    filtered_odds_3=latest_odds[bookmaker==all_bookmakers[select_bookmakers[i]]]
+    final_plot <- pca_calculator(filtered_odds_3)
+    final_plot[[1]]
+    final_plot <- MDS_calculator(filtered_odds_3,1)
+    final_plot[[1]]
+    final_plot <-  MDS_calculator(filtered_odds_3,2)
+    final_plot[[1]]
+  }
+  if(i==4){
+    filtered_odds_4=latest_odds[bookmaker==all_bookmakers[select_bookmakers[i]]]
+    final_plot <- pca_calculator(filtered_odds_4)
+    final_plot[[1]]
+    final_plot <- MDS_calculator(filtered_odds_4,1)
+    final_plot[[1]]
+    final_plot <-  MDS_calculator(filtered_odds_4,2)
+    final_plot[[1]]
+  }
+  if(i==5){
+    filtered_odds_5=latest_odds[bookmaker==all_bookmakers[select_bookmakers[i]]]
+    final_plot <- pca_calculator(filtered_odds_5)
+    final_plot[[1]]
+    final_plot <- MDS_calculator(filtered_odds_5,1)
+    final_plot[[1]]
+    final_plot <-  MDS_calculator(filtered_odds_5,2)
+    final_plot[[1]]
+  }
+}
+
+
+
+
